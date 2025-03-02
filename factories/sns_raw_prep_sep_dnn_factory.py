@@ -105,9 +105,11 @@ class SNSRawPrepSepDNNFactory:
         """
         print("=== 1) Load BPM Data ===")
         beam_df = self.create_beam_data()
+        print(beam_df.head())
 
         print("=== 2) Load & Merge DCM Data ===")
         dcm_df = self.create_dcm_data()
+        print(dcm_df.head())
 
         print("=== 3) Example Merge with BPM on timestamps (placeholder) ===")
         # e.g. merged_df = pd.merge_asof(...)
