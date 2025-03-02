@@ -18,21 +18,83 @@ class BPMDataConfig:
         self.beam_settings_prep_cfg = {
             "rescale": False,
             "beam_config": [
-                # columns...
+                'FE_IS:Match:TunerPos',
+                'LEBT:Chop_N:V_Set',
+                'LEBT:Chop_P:V_Set',
+                'LEBT:Focus_1:V_Set',
+                'LEBT:Focus_2:V_Set',
+                'LEBT:Steer_A:V_Set',
+                'LEBT:Steer_B:V_Set',
+                'LEBT:Steer_C:V_Set',
+                'LEBT:Steer_D:V_Set',
+                'Src:Accel:V_Set',
+                'Src:H2:Flw_Set',
+                'Src:Ign:Pwr_Set',
+                'Src:RF_Gnd:Pwr_Set',
+                'ICS_Chop:RampDown:PW',
+                'ICS_Chop:RampUp:PWChange',
+                'ICS_MPS:Gate_Source:Offset',
+                'ICS_Tim:Chop_Flavor1:BeamOn',
+                'ICS_Tim:Chop_Flavor1:OnPulseWidth',
+                'ICS_Tim:Chop_Flavor1:RampUp',
+                'ICS_Tim:Chop_Flavor1:StartPulseWidth',
+                'ICS_Tim:Gate_BeamRef:GateWidth',
                 'ICS_Tim:Gate_BeamOn:RR'
             ]
         }
         self.beam_config = [
             'timestamps',
-            # ... other columns ...
+            'FE_IS:Match:TunerPos',
+            'LEBT:Chop_N:V_Set',
+            'LEBT:Chop_P:V_Set',
+            'LEBT:Focus_1:V_Set',
+            'LEBT:Focus_2:V_Set',
+            'LEBT:Steer_A:V_Set',
+            'LEBT:Steer_B:V_Set',
+            'LEBT:Steer_C:V_Set',
+            'LEBT:Steer_D:V_Set',
+            'Src:Accel:V_Set',
+            'Src:H2:Flw_Set',
+            'Src:Ign:Pwr_Set',
+            'Src:RF_Gnd:Pwr_Set',
+            'ICS_Chop:RampDown:PW',
+            'ICS_Chop:RampUp:PWChange',
+            'ICS_MPS:Gate_Source:Offset',
+            'ICS_Tim:Chop_Flavor1:BeamOn',
+            'ICS_Tim:Chop_Flavor1:OnPulseWidth',
+            'ICS_Tim:Chop_Flavor1:RampUp',
+            'ICS_Tim:Chop_Flavor1:StartPulseWidth',
+            'ICS_Tim:Gate_BeamRef:GateWidth',
             'ICS_Tim:Gate_BeamOn:RR'
         ]
         self.column_to_add = [
-            # columns to add if missing
-        ]
+            'FE_IS:Match:TunerPos',
+            'LEBT:Chop_N:V_Set',
+            'LEBT:Chop_P:V_Set',
+            'LEBT:Focus_1:V_Set',
+            'LEBT:Focus_2:V_Set',
+            'LEBT:Steer_A:V_Set',
+            'LEBT:Steer_B:V_Set',
+            'LEBT:Steer_C:V_Set',
+            'LEBT:Steer_D:V_Set',
+            'Src:Accel:V_Set',
+            'Src:H2:Flw_Set',
+            'Src:Ign:Pwr_Set',
+            'Src:RF_Gnd:Pwr_Set',
+            'ICS_Tim:Gate_BeamOn:RR',
+            'ICS_Chop-RampDown-PW',
+            'ICS_Chop-RampUp-PWChange',
+            'ICS_Tim-Gate_BeamRef-GateWidth']
+
         self.rename_mappings = {
-            # rename dictionary
-        }
+            'ICS_Chop-RampDown-PW': 'ICS_Chop:RampDown:PW',
+            'ICS_Chop-RampUp-PWChange': 'ICS_Chop:RampUp:PWChange',
+            'ICS_MPS-Gate_Source-Offset': 'ICS_MPS:Gate_Source:Offset',
+            'ICS_Chop-BeamOn-Width': 'ICS_Tim:Chop_Flavor1:BeamOn',
+            'ICS_Chop-BeamOn-PW': 'ICS_Tim:Chop_Flavor1:OnPulseWidth',
+            'ICS_Chop-RampUp-Width': 'ICS_Tim:Chop_Flavor1:RampUp',
+            'ICS_Chop-RampUp-PW': 'ICS_Tim:Chop_Flavor1:StartPulseWidth',
+            'ICS_Tim-Gate_BeamRef-GateWidth': 'ICS_Tim:Gate_BeamRef:GateWidth'}
 
     def update_beam_config(self, beam_config_df: pd.DataFrame) -> pd.DataFrame:
         """Ensure required columns exist and rename if needed."""
