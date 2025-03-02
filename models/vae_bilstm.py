@@ -4,6 +4,7 @@ from tensorflow.keras.layers import (
     Input, LSTM, Dense, Bidirectional, RepeatVector, TimeDistributed, Lambda
 )
 
+from utils.logger import Logger
 
 class MyVAE(Model):
     """
@@ -15,6 +16,7 @@ class MyVAE(Model):
         self.window_size = window_size
         self.num_features = num_features
         self.latent_dim = latent_dim
+        self.logger = Logger()
 
         # Encoder
         self.encoder_bilstm_1 = Bidirectional(LSTM(64, return_sequences=True))
@@ -29,6 +31,7 @@ class MyVAE(Model):
         self.output_dense = TimeDistributed(Dense(num_features))
 
     def encode(self, x):
+        self.logger.info("====== Inside encode ======")
         x = self.encoder_bilstm_1(x)
         x = self.encoder_bilstm_2(x)
         z_mean = self.z_mean_dense(x)
@@ -36,10 +39,12 @@ class MyVAE(Model):
         return z_mean, z_log_var
 
     def reparameterize(self, z_mean, z_log_var):
+        self.logger.info("====== Inside reparameterize ======")
         epsilon = tf.random.normal(shape=(tf.shape(z_mean)[0], self.latent_dim))
         return z_mean + tf.exp(0.5 * z_log_var) * epsilon
 
     def decode(self, z):
+        self.logger.info("====== Inside decode ======")
         x = self.repeat_vector(z)
         x = self.decoder_bilstm_1(x)
         x = self.decoder_bilstm_2(x)

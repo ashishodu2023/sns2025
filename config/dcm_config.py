@@ -4,7 +4,7 @@ from beam_settings_prep import BeamConfigPreProcessor
 import pandas as pd
 import numpy as np 
 import os
-
+from utils.logger import Logger
 
 class DCMDatConfig:
     """
@@ -23,9 +23,11 @@ class DCMDatConfig:
         self.filtered_anomaly_files2 = []
         self.traces = []
         self.timestamps = []
+        self.logger = Logger()
 
     def get_sep_filtered_files(self):
         """Identify normal and anomaly files from dataset2_loc."""
+        self.logger.info("====== Inside the get_sep_filtered_files ======")
         subfolders = [f.path for f in os.scandir(self.dataset2_loc) if f.is_dir()]
         for directory in subfolders:
             if "normal" in directory or "anomal" in directory:
@@ -37,6 +39,6 @@ class DCMDatConfig:
                             elif "anomal" in directory:
                                 self.filtered_anomaly_files2.append(os.path.join(root, file))
 
-        print('Number of available normal files:', len(self.filtered_normal_files2))
-        print('Number of available anomaly files:', len(self.filtered_anomaly_files2))
+        self.logger.info('Number of available normal files:', len(self.filtered_normal_files2))
+        self.logger.info('Number of available anomaly files:', len(self.filtered_anomaly_files2))
         return self.filtered_normal_files2, self.filtered_anomaly_files2

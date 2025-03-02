@@ -11,6 +11,7 @@ from scipy.fftpack import fft
 from datetime import datetime, timedelta
 from sklearn.decomposition import PCA
 
+
 #Jlab Packages
 from data_utils import get_traces
 from beam_settings_parser_hdf5 import BeamConfigParserHDF5
@@ -32,6 +33,7 @@ from config.dcm_config import DCMDatConfig
 from data.beam_data_loader import BeamDataLoader
 from data.data_preprocessor import DataPreprocessor
 from data.merge_datasets import MergeDatasets
+from utils.logger import Logger
 
 pd.options.display.max_columns = None
 pd.options.display.max_rows = None
@@ -50,18 +52,17 @@ class SNSRawPrepSepDNNFactory:
         # Initialize config classes
         self.bpm_config = BPMDataConfig()
         self.dcm_config = DCMDatConfig()
+        self.logger = Logger()
 
     def create_beam_data(self) -> pd.DataFrame:
         """Load beam config CSV and do minimal merges."""
+        self.logger.info("====== Inside create_beam_data ======")
         loader = BeamDataLoader(self.bpm_config)
         beam_df = loader.load_beam_config_df()
         return beam_df
 
     def create_dcm_data(self) -> pd.DataFrame:
-        """
-        Example method: merges normal/anomaly traces from DCM config 
-        (just a placeholder showing usage).
-        """
+        self.logger.info("====== Inside create_dcm_data ======")
         # 1) get normal + anomaly file lists
         normal_files, anomaly_files = self.dcm_config.get_sep_filtered_files()
 
@@ -73,19 +74,22 @@ class SNSRawPrepSepDNNFactory:
 
     def preprocess_merged_data(self, merged_df: pd.DataFrame) -> pd.DataFrame:
         """
-        Example data cleaning, removing NaNs, etc.
+        data cleaning, removing NaNs, etc.
         """
+        self.logger.info("====== Inside preprocess_merged_data ======")
         # Example usage:
         dp = DataPreprocessor(merged_df)
         dp.remove_nan().convert_float64_to_float32()
         return dp.get_dataframe()
 
     def create_vae_bilstm_model(self, window_size: int, num_features: int, latent_dim: int = 16) -> MyVAE:
+        self.logger.info("====== Inside create_vae_bilstm_model ======")
         """Factory method to build the VAE-BiLSTM model."""
         model = MyVAE(window_size=window_size, num_features=num_features, latent_dim=latent_dim)
         return model
 
     def extract_trace_features(self, trace_row: np.ndarray) -> np.ndarray:
+        self.logger.info("====== Inside extract_trace_features ======")
         """Downsample + basic stats + partial FFT, etc."""
         downsampled = trace_row[::20]  # from 10k to 500
         mean_val = np.mean(downsampled)
@@ -96,6 +100,7 @@ class SNSRawPrepSepDNNFactory:
         return np.hstack([downsampled[:50], mean_val, std_val, peak_val, fft_val])
 
     def sampling(args):
+        self.logger.info("====== Inside sampling ======")
         z_mean, z_log_var = args
         batch = tf.shape(z_mean)[0]
         dim = tf.shape(z_mean)[1]
@@ -105,28 +110,29 @@ class SNSRawPrepSepDNNFactory:
 
     def run_pipeline(self):
         """
-        Example orchestrator method that:
         1) Loads beam + dcm data
         2) Merges & preprocesses
         3) Extracts trace features & PCA
         4) Builds + trains VAE-BiLSTM
         5) Performs anomaly detection
         """
-        print("=== 1) Load BPM Data ===")
+        self.logger.info("====== Inside run_pipeline======")
+
+        self.logger.info("=== 1) Load BPM Data ===")
         beam_df = self.create_beam_data()
-        print(f"==== The total row count in BPM : {beam_df.count()}")
+        self.logger.info(f"==== The total row count in BPM : {beam_df.shape[0]}")
 
-        print("=== 2) Load & Merge DCM Data ===")
+        self.logger.info("=== 2) Load & Merge DCM Data ===")
         dcm_df = self.create_dcm_data()
-        #print(dcm_df.head())
-        print(f"==== The total row count in DCM : {dcm_df.count()}")
+        #self.logger.info(dcm_df.head())
+        self.logger.info(f"==== The total row count in DCM : {dcm_df.shape[0]}")
 
-        print("=== 3) Example Merge with BPM on timestamps (placeholder)")
+        self.logger.info("=== 3) Example Merge with BPM on timestamps (placeholder)")
         merged_df = pd.DataFrame()  
         merged_df = pd.merge_asof(dcm_df.sort_values("timestamps"), beam_df.sort_values("timestamps"), on="timestamps", direction="nearest")
-        print(f"==== The total row count in merged dataframe : {merged_df.count()}")
+        self.logger.info(f"==== The total row count in merged dataframe : {merged_df.shape[0]}")
 
-        print("=== 4) Preprocess Merged Data ===")
+        self.logger.info("=== 4) Preprocess Merged Data ===")
         cleaned_df = self.preprocess_merged_data(merged_df)
         cleaned_df['traces']=merged_df['traces']
         cleaned_df['timestamps']=merged_df['timestamps']
@@ -134,22 +140,22 @@ class SNSRawPrepSepDNNFactory:
         cleaned_df["timestamp_seconds"] = pd.to_datetime(cleaned_df["timestamps"], errors="coerce").astype(int) / 10**9
         cleaned_df["time_diff"] = cleaned_df["timestamp_seconds"].diff().fillna(0)
         cleaned_df["traces"] = cleaned_df["traces"].apply(lambda x: np.array(eval(x)) if isinstance(x, str) else np.array(x))
-        print(f"==== The total row count in cleaned dataframe : {cleaned_df.count()}")
+        self.logger.info(f"==== The total row count in cleaned dataframe : {cleaned_df.shape[0]}")
 
-        print("=== 5) Feature Extraction for Traces ===")
+        self.logger.info("=== 5) Feature Extraction for Traces ===")
         trace_features = np.array(cleaned_df["traces"].apply(self.extract_trace_features).tolist())
         pca = PCA(n_components=50)
         trace_features_pca = pca.fit_transform(trace_features)
         trace_feature_names = [f"PCA_Trace_{i}" for i in range(trace_features_pca.shape[1])]
         df_pca = pd.DataFrame(trace_features_pca, columns=trace_feature_names)
         df = pd.concat([cleaned_df.drop(columns=["traces"], errors="ignore"), df_pca], axis=1)
-        #print(df.head())
+        #self.logger.info(df.head())
 
-        print("=== 6) Build VAE-BiLSTM Model ===")
+        self.logger.info("=== 6) Build VAE-BiLSTM Model ===")
         window_size, num_features = 100, 51
         vae_model = self.create_vae_bilstm_model(window_size, num_features, latent_dim=16)
 
-        print("=== 7) Train Model ===")
+        self.logger.info("=== 7) Train Model ===")
         optimizer = tf.keras.optimizers.SGD(learning_rate=1e-5)
         vae_model.compile(optimizer='sgd', loss='mae')
         X_train_combined = []
@@ -160,7 +166,7 @@ class SNSRawPrepSepDNNFactory:
         X_train_combined = np.nan_to_num(X_train_combined)
         history = vae_model.fit(X_train_combined, X_train_combined, epochs=50, batch_size=16, validation_split=0.1)
 
-        print("=== 8) Anomaly Detection ===")
+        self.logger.info("=== 8) Anomaly Detection ===")
         X_pred_combined = vae_model.predict(X_train_combined)
         reconstruction_errors = np.mean(np.abs(X_train_combined - X_pred_combined), axis=(1, 2))  # Mean absolute error
         threshold = np.percentile(reconstruction_errors, 95)
@@ -169,7 +175,7 @@ class SNSRawPrepSepDNNFactory:
             "Timestamp": df["timestamps"].iloc[window_size:],  # Align with pulse times
             "Reconstruction_Error": reconstruction_errors,
             "Anomaly": anomalies})
-        print("Top 20 Anomalous Pulses:")
-        print(df_anomalies_combined.sort_values(by="Reconstruction_Error", ascending=False).head(20))   
+        self.logger.info("Top 20 Anomalous Pulses:")
+        self.logger.info(df_anomalies_combined.sort_values(by="Reconstruction_Error", ascending=False).head(20))   
 
-        print("Pipeline run completed.")
+        self.logger.info("Pipeline run completed.")

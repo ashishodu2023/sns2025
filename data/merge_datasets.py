@@ -1,5 +1,7 @@
 import pandas as pd 
 import numpy as np 
+from utils.logger import Logger
+from data_utils import get_traces
 
 class MergeDatasets:
     """
@@ -8,13 +10,14 @@ class MergeDatasets:
 
     def __init__(self, length_of_waveform=10000):
         self.length_of_waveform = length_of_waveform
+        self.logger = Logger()
 
     def process_files(self, file_list, label, flag_value, data_type, alarm=None):
         """
         Loops through file_list, extracts traces/timestamps, and appends flags.
         This is an example using get_traces(...) placeholders.
         """
-        from data_utils import get_traces  # example
+        self.logger.info("====== Inside process_files ======")
         traces, timestamps, flags, files = [], [], [], []
 
         for dcml in file_list[:100]:

@@ -4,7 +4,7 @@ from beam_settings_prep import BeamConfigPreProcessor
 import pandas as pd
 import numpy as np 
 import os 
-
+from utils.logger import Logger
 
 class BPMDataConfig:
     """
@@ -13,6 +13,7 @@ class BPMDataConfig:
     """
 
     def __init__(self):
+        self.logger = Logger()
         self.beam_settings_data_path = "/work/data_science/suf_sns/beam_configurations_data/processed_data/clean_beam_config_processed_df.csv"
         self.beam_param_parser_cfg = {"data_location": "/work/data_science/suf_sns/beam_configurations_data/hdf5_sept2024/"}
         self.beam_settings_prep_cfg = {
@@ -98,6 +99,7 @@ class BPMDataConfig:
 
     def update_beam_config(self, beam_config_df: pd.DataFrame) -> pd.DataFrame:
         """Ensure required columns exist and rename if needed."""
+        self.logger.info("====== Inside the update_beam_config ======")
         for col in self.column_to_add:
             if col not in beam_config_df.columns:
                 beam_config_df[col] = np.nan
