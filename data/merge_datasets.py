@@ -1,3 +1,6 @@
+import pandas as pd 
+
+
 class MergeDatasets:
     """
     Merges normal/anomaly traces into a single DataFrame, merges with BPM data.

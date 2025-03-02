@@ -1,3 +1,5 @@
+import pandas as pd
+
 class DataPreprocessor:
     """
     Cleans, removes NaN/duplicates, and transforms numeric columns.

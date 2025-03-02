@@ -1,4 +1,5 @@
 import pandas as pd 
+from config.bpm_config import BPMDataConfig
 
 class BeamDataLoader:
     """
