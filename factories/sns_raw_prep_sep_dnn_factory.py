@@ -148,7 +148,7 @@ class SNSRawPrepSepDNNFactory:
 
         print("=== 7) Train Model ===")
         optimizer = tf.keras.optimizers.SGD(learning_rate=1e-5)
-        vae_model.compile(optimizer='adam', loss='mse')
+        vae_model.compile(optimizer='sgd', loss='mae')
         X_train_combined = []
         for i in range(window_size, len(df)):
             past_pulses = df.iloc[i - window_size:i][trace_feature_names + ["time_diff"]]
@@ -168,5 +168,5 @@ class SNSRawPrepSepDNNFactory:
             "Anomaly": anomalies})
         print("Top 20 Anomalous Pulses:")
         print(df_anomalies_combined.sort_values(by="Reconstruction_Error", ascending=False).head(20))   
-        
-        print("Pipeline run completed (demo).")
+
+        print("Pipeline run completed.")
