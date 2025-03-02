@@ -1,3 +1,10 @@
+import tensorflow as tf
+from tensorflow.keras import Model
+from tensorflow.keras.layers import (
+    Input, LSTM, Dense, Bidirectional, RepeatVector, TimeDistributed, Lambda
+)
+
+
 class MyVAE(Model):
     """
     Subclassed VAE with BiLSTM encoder/decoder + KL divergence.
