@@ -114,15 +114,17 @@ class SNSRawPrepSepDNNFactory:
         """
         print("=== 1) Load BPM Data ===")
         beam_df = self.create_beam_data()
-        #print(beam_df.head())
+        print(f"==== The total row count in BPM : {beam_df.count()}")
 
         print("=== 2) Load & Merge DCM Data ===")
         dcm_df = self.create_dcm_data()
         #print(dcm_df.head())
+        print(f"==== The total row count in DCM : {dcm_df.count()}")
 
-        print("=== 3) Example Merge with BPM on timestamps (placeholder) ===")
+        print("=== 3) Example Merge with BPM on timestamps (placeholder)")
         merged_df = pd.DataFrame()  
         merged_df = pd.merge_asof(dcm_df.sort_values("timestamps"), beam_df.sort_values("timestamps"), on="timestamps", direction="nearest")
+        print(f"==== The total row count in merged dataframe : {merged_df.count()}")
 
         print("=== 4) Preprocess Merged Data ===")
         cleaned_df = self.preprocess_merged_data(merged_df)
@@ -132,6 +134,7 @@ class SNSRawPrepSepDNNFactory:
         cleaned_df["timestamp_seconds"] = pd.to_datetime(cleaned_df["timestamps"], errors="coerce").astype(int) / 10**9
         cleaned_df["time_diff"] = cleaned_df["timestamp_seconds"].diff().fillna(0)
         cleaned_df["traces"] = cleaned_df["traces"].apply(lambda x: np.array(eval(x)) if isinstance(x, str) else np.array(x))
+        print(f"==== The total row count in cleaned dataframe : {cleaned_df.count()}")
 
         print("=== 5) Feature Extraction for Traces ===")
         trace_features = np.array(cleaned_df["traces"].apply(self.extract_trace_features).tolist())

@@ -17,7 +17,7 @@ class MergeDatasets:
         from data_utils import get_traces  # example
         traces, timestamps, flags, files = [], [], [], []
 
-        for dcml in file_list[:500]:
+        for dcml in file_list[:250]:
             if alarm is not None:
                 tmp_trace, tmp_timestamp = get_traces(
                     dcml, var_id="Trace2", begin=3000,
