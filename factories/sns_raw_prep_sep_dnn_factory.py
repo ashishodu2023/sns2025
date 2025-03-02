@@ -105,28 +105,33 @@ class SNSRawPrepSepDNNFactory:
         """
         print("=== 1) Load BPM Data ===")
         beam_df = self.create_beam_data()
-        print(beam_df.head())
+        #print(beam_df.head())
 
         print("=== 2) Load & Merge DCM Data ===")
         dcm_df = self.create_dcm_data()
-        print(dcm_df.head())
+        #print(dcm_df.head())
 
         print("=== 3) Example Merge with BPM on timestamps (placeholder) ===")
-        # e.g. merged_df = pd.merge_asof(...)
-        merged_df = pd.DataFrame()  # replace with actual merging logic
-        # merged_df = pd.merge_asof(dcm_df.sort_values("timestamps"), beam_df.sort_values("timestamps"), ...)
+        merged_df = pd.DataFrame()  
+        merged_df = pd.merge_asof(dcm_df.sort_values("timestamps"), beam_df.sort_values("timestamps"), on="timestamps", direction="nearest")
 
         print("=== 4) Preprocess Merged Data ===")
         cleaned_df = self.preprocess_merged_data(merged_df)
+        cleaned_df['traces']=merged_df['traces']
+        cleaned_df['timestamps']=merged_df['timestamps']
+        cleaned_df.drop(columns=['file','anomoly_flag'],inplace=True,axis=1)
+        cleaned_df["timestamp_seconds"] = pd.to_datetime(cleaned_df["timestamps"], errors="coerce").astype(int) / 10**9
+        cleaned_df["time_diff"] = cleaned_df["timestamp_seconds"].diff().fillna(0)
+        cleaned_df["traces"] = cleaned_df["traces"].apply(lambda x: np.array(eval(x)) if isinstance(x, str) else np.array(x))
 
         print("=== 5) Feature Extraction for Traces ===")
-        # Suppose 'traces' is in cleaned_df
-        # You can do:
-        # trace_features = np.array(cleaned_df["traces"].apply(self.extract_trace_features).tolist())
-
-        # pca = PCA(n_components=50)
-        # trace_features_pca = pca.fit_transform(trace_features)
-        # ... and so on ...
+        trace_features = np.array(cleaned_df["traces"].apply(self.extract_trace_features).tolist())
+        pca = PCA(n_components=50)
+        trace_features_pca = pca.fit_transform(trace_features)
+        trace_feature_names = [f"PCA_Trace_{i}" for i in range(trace_features_pca.shape[1])]
+        df_pca = pd.DataFrame(trace_features_pca, columns=trace_feature_names)
+        df = pd.concat([cleaned_df.drop(columns=["traces"], errors="ignore"), df_pca], axis=1)
+        print(df.head())
 
         print("=== 6) Build VAE-BiLSTM Model ===")
         # window_size, num_features = 100, 51
