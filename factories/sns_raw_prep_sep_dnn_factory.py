@@ -95,6 +95,14 @@ class SNSRawPrepSepDNNFactory:
         # example: keep first 50 + stats
         return np.hstack([downsampled[:50], mean_val, std_val, peak_val, fft_val])
 
+    def sampling(args):
+        z_mean, z_log_var = args
+        batch = tf.shape(z_mean)[0]
+        dim = tf.shape(z_mean)[1]
+        epsilon = tf.keras.backend.random_normal(shape=(batch, dim))
+        return z_mean + tf.exp(0.5 * z_log_var) * epsilon
+
+
     def run_pipeline(self):
         """
         Example orchestrator method that:
@@ -132,21 +140,33 @@ class SNSRawPrepSepDNNFactory:
         trace_feature_names = [f"PCA_Trace_{i}" for i in range(trace_features_pca.shape[1])]
         df_pca = pd.DataFrame(trace_features_pca, columns=trace_feature_names)
         df = pd.concat([cleaned_df.drop(columns=["traces"], errors="ignore"), df_pca], axis=1)
-        print(df.head())
+        #print(df.head())
 
         print("=== 6) Build VAE-BiLSTM Model ===")
-        # window_size, num_features = 100, 51
-        # vae_model = self.create_vae_bilstm_model(window_size, num_features, latent_dim=16)
+        window_size, num_features = 100, 51
+        vae_model = self.create_vae_bilstm_model(window_size, num_features, latent_dim=16)
 
         print("=== 7) Train Model ===")
-        # vae_model.compile(optimizer='adam', loss='mse')
-        # X_train_combined = ...
-        # history = vae_model.fit(X_train_combined, X_train_combined, epochs=50, batch_size=32, validation_split=0.1)
+        optimizer = tf.keras.optimizers.SGD(learning_rate=1e-5)
+        vae_model.compile(optimizer='adam', loss='mse')
+        X_train_combined = []
+        for i in range(window_size, len(df)):
+            past_pulses = df.iloc[i - window_size:i][trace_feature_names + ["time_diff"]]
+            X_train_combined.append(past_pulses.values)
+        X_train_combined = np.array(X_train_combined, dtype=np.float32)
+        X_train_combined = np.nan_to_num(X_train_combined)
+        history = vae_model.fit(X_train_combined, X_train_combined, epochs=50, batch_size=16, validation_split=0.1)
 
         print("=== 8) Anomaly Detection ===")
-        # X_pred = vae_model.predict(X_train_combined)
-        # reconstruction_errors = ...
-        # threshold = ...
-        # anomalies = ...
-        # ...
+        X_pred_combined = vae_model.predict(X_train_combined)
+        reconstruction_errors = np.mean(np.abs(X_train_combined - X_pred_combined), axis=(1, 2))  # Mean absolute error
+        threshold = np.percentile(reconstruction_errors, 95)
+        anomalies = reconstruction_errors > threshold
+        df_anomalies_combined = pd.DataFrame({
+            "Timestamp": df["timestamps"].iloc[window_size:],  # Align with pulse times
+            "Reconstruction_Error": reconstruction_errors,
+            "Anomaly": anomalies})
+        print("Top 20 Anomalous Pulses:")
+        print(df_anomalies_combined.sort_values(by="Reconstruction_Error", ascending=False).head(20))   
+        
         print("Pipeline run completed (demo).")
