@@ -25,6 +25,7 @@ from tensorflow.keras import Model
 from tensorflow.keras.layers import (
     Input, LSTM, Dense, Bidirectional, RepeatVector, TimeDistributed, Lambda
 )
+from models.vae_bilstm import MyVAE
 
 pd.options.display.max_columns = None
 pd.options.display.max_rows = None
