@@ -39,6 +39,6 @@ class DCMDatConfig:
                             elif "anomal" in directory:
                                 self.filtered_anomaly_files2.append(os.path.join(root, file))
 
-        self.logger.info('Number of available normal files:', len(self.filtered_normal_files2))
-        self.logger.info('Number of available anomaly files:', len(self.filtered_anomaly_files2))
+        self.logger.info(len(self.filtered_normal_files2))
+        self.logger.info(len(self.filtered_anomaly_files2))
         return self.filtered_normal_files2, self.filtered_anomaly_files2
