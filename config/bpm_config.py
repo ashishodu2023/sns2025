@@ -3,6 +3,8 @@ from beam_settings_parser_hdf5 import BeamConfigParserHDF5
 from beam_settings_prep import BeamConfigPreProcessor
 import pandas as pd
 import numpy as np 
+import os 
+
 
 class BPMDataConfig:
     """
