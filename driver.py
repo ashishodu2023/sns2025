@@ -1,3 +1,4 @@
+from  factories.sns_raw_prep_sep_dnn_factory import SNSRawPrepSepDNNFactory
 def main():
     """Example main entry point using the factory approach."""
     factory = SNSRawPrepSepDNNFactory()

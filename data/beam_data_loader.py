@@ -1,3 +1,5 @@
+import pandas as pd 
+
 class BeamDataLoader:
     """
     Loads and merges BPM beam configuration data.
