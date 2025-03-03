@@ -220,7 +220,7 @@ class SNSRawPrepSepDNNFactory:
 
         # Build same model architecture
         vae_model = self.create_vae_bilstm_model(latent_dim=16)
-        vae_model.load_weights(model_path)
+        vae_model.load(model_path)
         self.logger.info(f"Model weights loaded from: {model_path}")
 
         # Windowing
