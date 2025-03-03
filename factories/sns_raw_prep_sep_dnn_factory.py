@@ -1,11 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-"""
-Example: SNSRawPrepSepDNNFactory with argparse for epochs, batch_size, learning_rate, latent_dim
-Usage:
-    python3 sns_raw_prep_sep_dnn_factory.py --epochs 100 --batch_size 8 --learning_rate 1e-4 --latent_dim 32
-"""
+
 
 import os
 import numpy as np
@@ -48,21 +44,21 @@ from utils.logger import Logger
 pd.options.display.max_columns = None
 pd.options.display.max_rows = None
 
+
 class SNSRawPrepSepDNNFactory:
     """
-    The main factory that orchestrates the entire pipeline:
-    1) Load BPM config + DCM config
-    2) Merge data
-    3) Preprocess
-    4) Build VAE-BiLSTM
-    5) Train and do anomaly detection
+    The main factory that orchestrates the entire pipeline.
+    Subcommands:
+      1) train_pipeline(...)  - Load data, train VAE-BiLSTM, save model
+      2) predict_pipeline(...) - Load model, run anomaly detection
     """
 
     def __init__(self):
-        # Initialize config classes
         self.bpm_config = BPMDataConfig()
         self.dcm_config = DCMDatConfig()
         self.logger = Logger()
+        self.window_size = 100
+        self.num_features = 51
 
     def create_beam_data(self) -> pd.DataFrame:
         """Load beam config CSV and do minimal merges."""
@@ -73,32 +69,29 @@ class SNSRawPrepSepDNNFactory:
 
     def create_dcm_data(self) -> pd.DataFrame:
         self.logger.info("====== Inside create_dcm_data ======")
-        # 1) get normal + anomaly file lists
         normal_files, anomaly_files = self.dcm_config.get_sep_filtered_files()
-
-        # 2) process them
         merger = MergeDatasets(length_of_waveform=self.dcm_config.length_of_waveform)
         dcm_normal = merger.process_files(normal_files, 'Sep24', 0, data_type=0)
         dcm_anormal = merger.process_files(anomaly_files, 'Sep24', 1, data_type=-1, alarm=48)
         return pd.concat([dcm_normal, dcm_anormal], ignore_index=True)
 
     def preprocess_merged_data(self, merged_df: pd.DataFrame) -> pd.DataFrame:
-        """
-        data cleaning, removing NaNs, etc.
-        """
         self.logger.info("====== Inside preprocess_merged_data ======")
         dp = DataPreprocessor(merged_df)
         dp.remove_nan().convert_float64_to_float32()
         return dp.get_dataframe()
 
-    def create_vae_bilstm_model(self, window_size: int, num_features: int, latent_dim: int = 16) -> MyVAE:
-        self.logger.info("====== Inside create_vae_bilstm_model ======")
+    def create_vae_bilstm_model(self, latent_dim: int = 16) -> MyVAE:
         """Factory method to build the VAE-BiLSTM model."""
-        model = MyVAE(window_size=window_size, num_features=num_features, latent_dim=latent_dim)
+        self.logger.info("====== Inside create_vae_bilstm_model ======")
+        model = MyVAE(
+            window_size=self.window_size,
+            num_features=self.num_features,
+            latent_dim=latent_dim
+        )
         return model
 
     def extract_trace_features(self, trace_row: np.ndarray) -> np.ndarray:
-        self.logger.info("====== Inside extract_trace_features ======")
         """Downsample + basic stats + partial FFT, etc."""
         downsampled = trace_row[::20]  # from 10k to 500
         mean_val = np.mean(downsampled)
@@ -108,94 +101,94 @@ class SNSRawPrepSepDNNFactory:
         # example: keep first 50 + stats
         return np.hstack([downsampled[:50], mean_val, std_val, peak_val, fft_val])
 
-    def run_pipeline(
-        self,
-        epochs: int = 50,
-        batch_size: int = 16,
-        learning_rate: float = 1e-5,
-        latent_dim: int = 16
-    ):
+    def _prepare_final_df(self) -> (pd.DataFrame, list):
         """
-        1) Loads beam + dcm data
-        2) Merges & preprocesses
-        3) Extracts trace features & PCA
-        4) Builds + trains VAE-BiLSTM
-        5) Performs anomaly detection
-
-        :param epochs: Number of training epochs
-        :param batch_size: Batch size for training
-        :param learning_rate: Learning rate for the optimizer
-        :param latent_dim: Latent dimension in the VAE
+        A single method that:
+          1) Loads BPM + DCM data
+          2) Merges them
+          3) Preprocesses (NaN, type conversions)
+          4) Extracts trace features + PCA
+        Returns:
+          df_final: final DataFrame with PCA columns
+          trace_feature_names: list of PCA column names
         """
-        self.logger.info("====== Inside run_pipeline======")
+        self.logger.info("====== Inside _prepare_final_df ======")
 
-        self.logger.info("====== Load BPM Data ======")
+        # 1) Load data
         beam_df = self.create_beam_data()
-        self.logger.info(f"====== The total row count in BPM : {beam_df.shape[0]}")
-
-        self.logger.info("====== Load & Merge DCM Data ======")
         dcm_df = self.create_dcm_data()
-        self.logger.info(f"====== The total row count in DCM : {dcm_df.shape[0]}")
 
-        self.logger.info("====== Merge with BPM on timestamps (placeholder)")
+        # 2) Merge
         merged_df = pd.merge_asof(
             dcm_df.sort_values("timestamps"),
             beam_df.sort_values("timestamps"),
             on="timestamps",
             direction="nearest"
         )
-        self.logger.info(f"======= The total row count in merged dataframe : {merged_df.shape[0]}")
 
-        self.logger.info("====== Preprocess Merged Data ======")
+        # 3) Preprocess
         cleaned_df = self.preprocess_merged_data(merged_df)
-        cleaned_df['traces'] = merged_df['traces']
-        cleaned_df['timestamps'] = merged_df['timestamps']
-        # Drop extra columns if present
-        for col_to_drop in ['file', 'anomoly_flag']:
+        cleaned_df["traces"] = merged_df["traces"]
+        cleaned_df["timestamps"] = merged_df["timestamps"]
+        for col_to_drop in ["file", "anomoly_flag"]:
             if col_to_drop in cleaned_df.columns:
-                cleaned_df.drop(columns=[col_to_drop], inplace=True, axis=1, errors='ignore')
+                cleaned_df.drop(columns=[col_to_drop], inplace=True, errors='ignore')
 
-        cleaned_df["timestamp_seconds"] = pd.to_datetime(
-            cleaned_df["timestamps"], errors="coerce"
-        ).astype(int) / 10**9
+        cleaned_df["timestamp_seconds"] = pd.to_datetime(cleaned_df["timestamps"], errors="coerce").astype(int) / 10**9
         cleaned_df["time_diff"] = cleaned_df["timestamp_seconds"].diff().fillna(0)
         cleaned_df["traces"] = cleaned_df["traces"].apply(
             lambda x: np.array(eval(x)) if isinstance(x, str) else np.array(x)
         )
-        self.logger.info(f"====== The total row count in cleaned dataframe : {cleaned_df.shape[0]}")
 
-        self.logger.info("====== Feature Extraction for Traces ======")
+        # 4) Feature extraction + PCA
         trace_features = np.array(
             cleaned_df["traces"].apply(self.extract_trace_features).tolist()
         )
         pca = PCA(n_components=50)
         trace_features_pca = pca.fit_transform(trace_features)
         trace_feature_names = [f"PCA_Trace_{i}" for i in range(trace_features_pca.shape[1])]
+
         df_pca = pd.DataFrame(trace_features_pca, columns=trace_feature_names)
-        df_final = pd.concat(
-            [cleaned_df.drop(columns=["traces"], errors="ignore"), df_pca],
-            axis=1
-        )
+        df_final = pd.concat([cleaned_df.drop(columns=["traces"], errors="ignore"), df_pca], axis=1)
 
-        self.logger.info("====== Build VAE-BiLSTM Model ======")
-        window_size, num_features = 100, 51
-        vae_model = self.create_vae_bilstm_model(
-            window_size=window_size,
-            num_features=num_features,
-            latent_dim=latent_dim
-        )
+        return df_final, trace_feature_names
 
-        self.logger.info("======  Train Model ======")
+    # ---------------------------
+    # TRAIN PIPELINE
+    # ---------------------------
+    def train_pipeline(
+        self,
+        epochs: int = 50,
+        batch_size: int = 16,
+        learning_rate: float = 1e-5,
+        latent_dim: int = 16,
+        model_path: str = "saved_models/vae_bilstm_model.h5"
+    ):
+        """
+        1) Prepares final DataFrame (df_final)
+        2) Builds & trains VAE-BiLSTM
+        3) Saves model weights
+        """
+        self.logger.info("====== Inside train_pipeline ======")
+
+        df_final, trace_feature_names = self._prepare_final_df()
+
+        # Build model
+        vae_model = self.create_vae_bilstm_model(latent_dim=latent_dim)
+
+        # Compile
         optimizer = tf.keras.optimizers.SGD(learning_rate=learning_rate)
         vae_model.compile(optimizer=optimizer, loss='mae')
 
+        # Windowing
         X_train_combined = []
-        for i in range(window_size, len(df_final)):
-            past_pulses = df_final.iloc[i - window_size:i][trace_feature_names + ["time_diff"]]
+        for i in range(self.window_size, len(df_final)):
+            past_pulses = df_final.iloc[i - self.window_size : i][trace_feature_names + ["time_diff"]]
             X_train_combined.append(past_pulses.values)
         X_train_combined = np.array(X_train_combined, dtype=np.float32)
         X_train_combined = np.nan_to_num(X_train_combined)
 
+        # Train
         history = vae_model.fit(
             X_train_combined, X_train_combined,
             epochs=epochs,
@@ -203,23 +196,55 @@ class SNSRawPrepSepDNNFactory:
             validation_split=0.1
         )
 
-        self.logger.info("====== Anomaly Detection ======")
-        X_pred_combined = vae_model.predict(X_train_combined)
-        reconstruction_errors = np.mean(
-            np.abs(X_train_combined - X_pred_combined),
-            axis=(1, 2)
-        )  # Mean absolute error
-        threshold = np.percentile(reconstruction_errors, 95)
+        # Save
+        vae_model.save_weights(model_path)
+        self.logger.info(f"Model saved to: {model_path}")
+        self.logger.info("====== Training pipeline completed ======")
+
+    # ---------------------------
+    # PREDICT PIPELINE
+    # ---------------------------
+    def predict_pipeline(
+        self,
+        model_path: str = "vae_bilstm_model.h5",
+        threshold_percentile: float = 95.0
+    ):
+        """
+        1) Prepares final DataFrame (df_final)
+        2) Loads VAE-BiLSTM weights
+        3) Computes reconstruction errors & anomalies
+        """
+        self.logger.info("====== Inside predict_pipeline ======")
+
+        df_final, trace_feature_names = self._prepare_final_df()
+
+        # Build same model architecture
+        vae_model = self.create_vae_bilstm_model(latent_dim=16)
+        vae_model.load_weights(model_path)
+        self.logger.info(f"Model weights loaded from: {model_path}")
+
+        # Windowing
+        X_test_combined = []
+        for i in range(self.window_size, len(df_final)):
+            past_pulses = df_final.iloc[i - self.window_size : i][trace_feature_names + ["time_diff"]]
+            X_test_combined.append(past_pulses.values)
+        X_test_combined = np.array(X_test_combined, dtype=np.float32)
+        X_test_combined = np.nan_to_num(X_test_combined)
+
+        # Predict
+        X_pred = vae_model.predict(X_test_combined)
+        reconstruction_errors = np.mean(np.abs(X_test_combined - X_pred), axis=(1, 2))
+        threshold = np.percentile(reconstruction_errors, threshold_percentile)
         anomalies = reconstruction_errors > threshold
-        df_anomalies_combined = pd.DataFrame({
-            "Timestamp": df_final["timestamps"].iloc[window_size:],  # Align with pulse times
+
+        df_anomalies = pd.DataFrame({
+            "Timestamp": df_final["timestamps"].iloc[self.window_size:],
             "Reconstruction_Error": reconstruction_errors,
             "Anomaly": anomalies
         })
-        self.logger.info("====== Top 20 Anomalous Pulses ======")
-        self.logger.info(
-            df_anomalies_combined.sort_values(by="Reconstruction_Error", ascending=False).head(20)
-        )
 
-        self.logger.info("====== Pipeline run completed ======")
+        self.logger.info(f"Top 20 anomalies (threshold={threshold:.4f} at {threshold_percentile} percentile):")
+        self.logger.info(df_anomalies.sort_values(by="Reconstruction_Error", ascending=False).head(20))
+
+        self.logger.info("====== Prediction pipeline completed ======")
 
