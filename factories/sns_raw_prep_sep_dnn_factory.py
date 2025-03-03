@@ -1,3 +1,12 @@
+#!/usr/bin/env python
+# coding: utf-8
+
+"""
+Example: SNSRawPrepSepDNNFactory with argparse for epochs, batch_size, learning_rate, latent_dim
+Usage:
+    python3 sns_raw_prep_sep_dnn_factory.py --epochs 100 --batch_size 8 --learning_rate 1e-4 --latent_dim 32
+"""
+
 import os
 import numpy as np
 import pandas as pd
@@ -10,23 +19,24 @@ from sklearn.svm import OneClassSVM
 from scipy.fftpack import fft
 from datetime import datetime, timedelta
 from sklearn.decomposition import PCA
+import argparse
 
-
-#Jlab Packages
+# Jlab Packages
 from data_utils import get_traces
 from beam_settings_parser_hdf5 import BeamConfigParserHDF5
 from beam_settings_prep import BeamConfigPreProcessor
 
-
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
-#Tensorflow 
+# TensorFlow
 import tensorflow as tf
 from tensorflow.keras import Model
 from tensorflow.keras.layers import (
     Input, LSTM, Dense, Bidirectional, RepeatVector, TimeDistributed, Lambda
 )
+
+# Local modules (assuming you have them in your Python path)
 from models.vae_bilstm import MyVAE
 from config.bpm_config import BPMDataConfig
 from config.dcm_config import DCMDatConfig
@@ -77,7 +87,6 @@ class SNSRawPrepSepDNNFactory:
         data cleaning, removing NaNs, etc.
         """
         self.logger.info("====== Inside preprocess_merged_data ======")
-        # Example usage:
         dp = DataPreprocessor(merged_df)
         dp.remove_nan().convert_float64_to_float32()
         return dp.get_dataframe()
@@ -99,22 +108,24 @@ class SNSRawPrepSepDNNFactory:
         # example: keep first 50 + stats
         return np.hstack([downsampled[:50], mean_val, std_val, peak_val, fft_val])
 
-    def sampling(args):
-        self.logger.info("====== Inside sampling ======")
-        z_mean, z_log_var = args
-        batch = tf.shape(z_mean)[0]
-        dim = tf.shape(z_mean)[1]
-        epsilon = tf.keras.backend.random_normal(shape=(batch, dim))
-        return z_mean + tf.exp(0.5 * z_log_var) * epsilon
-
-
-    def run_pipeline(self):
+    def run_pipeline(
+        self,
+        epochs: int = 50,
+        batch_size: int = 16,
+        learning_rate: float = 1e-5,
+        latent_dim: int = 16
+    ):
         """
         1) Loads beam + dcm data
         2) Merges & preprocesses
         3) Extracts trace features & PCA
         4) Builds + trains VAE-BiLSTM
         5) Performs anomaly detection
+
+        :param epochs: Number of training epochs
+        :param batch_size: Batch size for training
+        :param learning_rate: Learning rate for the optimizer
+        :param latent_dim: Latent dimension in the VAE
         """
         self.logger.info("====== Inside run_pipeline======")
 
@@ -124,58 +135,110 @@ class SNSRawPrepSepDNNFactory:
 
         self.logger.info("====== Load & Merge DCM Data ======")
         dcm_df = self.create_dcm_data()
-        #self.logger.info(dcm_df.head())
         self.logger.info(f"====== The total row count in DCM : {dcm_df.shape[0]}")
 
         self.logger.info("====== Merge with BPM on timestamps (placeholder)")
-        merged_df = pd.DataFrame()  
-        merged_df = pd.merge_asof(dcm_df.sort_values("timestamps"), beam_df.sort_values("timestamps"), on="timestamps", direction="nearest")
+        merged_df = pd.merge_asof(
+            dcm_df.sort_values("timestamps"),
+            beam_df.sort_values("timestamps"),
+            on="timestamps",
+            direction="nearest"
+        )
         self.logger.info(f"======= The total row count in merged dataframe : {merged_df.shape[0]}")
 
         self.logger.info("====== Preprocess Merged Data ======")
         cleaned_df = self.preprocess_merged_data(merged_df)
-        cleaned_df['traces']=merged_df['traces']
-        cleaned_df['timestamps']=merged_df['timestamps']
-        cleaned_df.drop(columns=['file','anomoly_flag'],inplace=True,axis=1)
-        cleaned_df["timestamp_seconds"] = pd.to_datetime(cleaned_df["timestamps"], errors="coerce").astype(int) / 10**9
+        cleaned_df['traces'] = merged_df['traces']
+        cleaned_df['timestamps'] = merged_df['timestamps']
+        # Drop extra columns if present
+        for col_to_drop in ['file', 'anomoly_flag']:
+            if col_to_drop in cleaned_df.columns:
+                cleaned_df.drop(columns=[col_to_drop], inplace=True, axis=1, errors='ignore')
+
+        cleaned_df["timestamp_seconds"] = pd.to_datetime(
+            cleaned_df["timestamps"], errors="coerce"
+        ).astype(int) / 10**9
         cleaned_df["time_diff"] = cleaned_df["timestamp_seconds"].diff().fillna(0)
-        cleaned_df["traces"] = cleaned_df["traces"].apply(lambda x: np.array(eval(x)) if isinstance(x, str) else np.array(x))
+        cleaned_df["traces"] = cleaned_df["traces"].apply(
+            lambda x: np.array(eval(x)) if isinstance(x, str) else np.array(x)
+        )
         self.logger.info(f"====== The total row count in cleaned dataframe : {cleaned_df.shape[0]}")
 
         self.logger.info("====== Feature Extraction for Traces ======")
-        trace_features = np.array(cleaned_df["traces"].apply(self.extract_trace_features).tolist())
+        trace_features = np.array(
+            cleaned_df["traces"].apply(self.extract_trace_features).tolist()
+        )
         pca = PCA(n_components=50)
         trace_features_pca = pca.fit_transform(trace_features)
         trace_feature_names = [f"PCA_Trace_{i}" for i in range(trace_features_pca.shape[1])]
         df_pca = pd.DataFrame(trace_features_pca, columns=trace_feature_names)
-        df = pd.concat([cleaned_df.drop(columns=["traces"], errors="ignore"), df_pca], axis=1)
-        #self.logger.info(df.head())
+        df_final = pd.concat(
+            [cleaned_df.drop(columns=["traces"], errors="ignore"), df_pca],
+            axis=1
+        )
 
         self.logger.info("====== Build VAE-BiLSTM Model ======")
         window_size, num_features = 100, 51
-        vae_model = self.create_vae_bilstm_model(window_size, num_features, latent_dim=16)
+        vae_model = self.create_vae_bilstm_model(
+            window_size=window_size,
+            num_features=num_features,
+            latent_dim=latent_dim
+        )
 
         self.logger.info("======  Train Model ======")
-        optimizer = tf.keras.optimizers.SGD(learning_rate=1e-5)
-        vae_model.compile(optimizer='sgd', loss='mae')
+        optimizer = tf.keras.optimizers.SGD(learning_rate=learning_rate)
+        vae_model.compile(optimizer=optimizer, loss='mae')
+
         X_train_combined = []
-        for i in range(window_size, len(df)):
-            past_pulses = df.iloc[i - window_size:i][trace_feature_names + ["time_diff"]]
+        for i in range(window_size, len(df_final)):
+            past_pulses = df_final.iloc[i - window_size:i][trace_feature_names + ["time_diff"]]
             X_train_combined.append(past_pulses.values)
         X_train_combined = np.array(X_train_combined, dtype=np.float32)
         X_train_combined = np.nan_to_num(X_train_combined)
-        history = vae_model.fit(X_train_combined, X_train_combined, epochs=50, batch_size=16, validation_split=0.1)
+
+        history = vae_model.fit(
+            X_train_combined, X_train_combined,
+            epochs=epochs,
+            batch_size=batch_size,
+            validation_split=0.1
+        )
 
         self.logger.info("====== Anomaly Detection ======")
         X_pred_combined = vae_model.predict(X_train_combined)
-        reconstruction_errors = np.mean(np.abs(X_train_combined - X_pred_combined), axis=(1, 2))  # Mean absolute error
+        reconstruction_errors = np.mean(
+            np.abs(X_train_combined - X_pred_combined),
+            axis=(1, 2)
+        )  # Mean absolute error
         threshold = np.percentile(reconstruction_errors, 95)
         anomalies = reconstruction_errors > threshold
         df_anomalies_combined = pd.DataFrame({
-            "Timestamp": df["timestamps"].iloc[window_size:],  # Align with pulse times
+            "Timestamp": df_final["timestamps"].iloc[window_size:],  # Align with pulse times
             "Reconstruction_Error": reconstruction_errors,
-            "Anomaly": anomalies})
+            "Anomaly": anomalies
+        })
         self.logger.info("====== Top 20 Anomalous Pulses ======")
-        self.logger.info(df_anomalies_combined.sort_values(by="Reconstruction_Error", ascending=False).head(20))   
+        self.logger.info(
+            df_anomalies_combined.sort_values(by="Reconstruction_Error", ascending=False).head(20)
+        )
 
         self.logger.info("====== Pipeline run completed ======")
+
+
+# --------------------------
+#  MAIN with ARGPARSE
+# --------------------------
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="VAE-BiLSTM Pipeline for SNS Data")
+    parser.add_argument("--epochs", type=int, default=50, help="Number of training epochs")
+    parser.add_argument("--batch_size", type=int, default=16, help="Batch size for training")
+    parser.add_argument("--learning_rate", type=float, default=1e-5, help="Learning rate for SGD optimizer")
+    parser.add_argument("--latent_dim", type=int, default=16, help="Latent dimension for VAE")
+    args = parser.parse_args()
+
+    factory = SNSRawPrepSepDNNFactory()
+    factory.run_pipeline(
+        epochs=args.epochs,
+        batch_size=args.batch_size,
+        learning_rate=args.learning_rate,
+        latent_dim=args.latent_dim
+    )

@@ -1,15 +1,6 @@
 
 
-### Training 
-* python driver.py --model Autoencoder --path models/autoencoder.h5 --mode train --epochs 20 --batch_size 64
+### PipeLine 
 
-### Inference 
-* python driver.py --model Autoencoder --path models/autoencoder.h5 --mode predict 
+python3 sns_raw_prep_sep_dnn_factory.py --epochs 100 --batch_size 8 --learning_rate 1e-4 --latent_dim 32
 
-### Benchmarking 
-* python driver.py --model Autoencoder --path models/autoencoder.h5 --mode benchmark --device CPU
-* python driver.py --model Autoencoder --path models/autoencoder.h5 --mode benchmark --device GPU
-
-
-### Realtime 
-* python driver.py --model Autoencoder --path models/autoencoder.h5 --mode anomaly --steps 100
