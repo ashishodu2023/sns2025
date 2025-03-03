@@ -219,8 +219,9 @@ class SNSRawPrepSepDNNFactory:
         df_final, trace_feature_names = self._prepare_final_df()
 
         # Build same model architecture
-        vae_model = self.create_vae_bilstm_model(latent_dim=16)
-        vae_model.load(model_path)
+        #vae_model = self.create_vae_bilstm_model(latent_dim=16)
+        loaded_vae_model=tf.keras.models.load_model(model_path)
+        loaded_vae_model.build(None, self.window_size, self.num_features)
         self.logger.info(f"Model weights loaded from: {model_path}")
 
         # Windowing
@@ -232,7 +233,7 @@ class SNSRawPrepSepDNNFactory:
         X_test_combined = np.nan_to_num(X_test_combined)
 
         # Predict
-        X_pred = vae_model.predict(X_test_combined)
+        X_pred = loaded_vae_model.predict(X_test_combined)
         reconstruction_errors = np.mean(np.abs(X_test_combined - X_pred), axis=(1, 2))
         threshold = np.percentile(reconstruction_errors, threshold_percentile)
         anomalies = reconstruction_errors > threshold
