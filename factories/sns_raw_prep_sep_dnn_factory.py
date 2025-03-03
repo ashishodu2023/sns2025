@@ -221,7 +221,7 @@ class SNSRawPrepSepDNNFactory:
         # Build same model architecture
         new_vae_model = MyVAE(window_size=100, num_features=51, latent_dim=16)
         new_vae_model.build((None, 100, 51))  # or a dummy forward pass
-        new_vae_model.load_weights("sns2025/saved_models/vae_bilstm_model.weights.h5")
+        new_vae_model.load_weights("~/sns2025/saved_models/vae_bilstm_model.weights.h5")
         self.logger.info(f"Model weights loaded from: {model_path}")
 
         # Windowing
