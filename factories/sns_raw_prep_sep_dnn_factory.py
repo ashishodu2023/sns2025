@@ -197,7 +197,7 @@ class SNSRawPrepSepDNNFactory:
         )
 
         # Save
-        vae_model.save(model_path)
+        vae_model.save_weights("saved_models/vae_bilstm_model.weights.h5")
         self.logger.info(f"Model saved to: {model_path}")
         self.logger.info("====== Training pipeline completed ======")
 
@@ -219,9 +219,9 @@ class SNSRawPrepSepDNNFactory:
         df_final, trace_feature_names = self._prepare_final_df()
 
         # Build same model architecture
-        #vae_model = self.create_vae_bilstm_model(latent_dim=16)
-        loaded_vae_model=tf.keras.models.load_model(model_path)
-        loaded_vae_model.build(None, self.window_size, self.num_features)
+        new_vae_model = MyVAE(window_size=100, num_features=51, latent_dim=16)
+        new_vae_model.build((None, 100, 51))  # or a dummy forward pass
+        new_vae_model.load_weights("my_vae_model.weights.h5")
         self.logger.info(f"Model weights loaded from: {model_path}")
 
         # Windowing
