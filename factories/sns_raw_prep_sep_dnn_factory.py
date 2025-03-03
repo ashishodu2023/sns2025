@@ -197,7 +197,7 @@ class SNSRawPrepSepDNNFactory:
         )
 
         # Save
-        vae_model.save_weights(model_path)
+        vae_model.save(model_path)
         self.logger.info(f"Model saved to: {model_path}")
         self.logger.info("====== Training pipeline completed ======")
 
