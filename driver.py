@@ -48,7 +48,8 @@ def main():
             batch_size=args.batch_size,
             learning_rate=args.learning_rate,
             latent_dim=args.latent_dim,
-            model_path=args.model_path
+            model_path=args.model_path,
+            tensorboard_logdir=args.tensorboard_logdir 
         )
     elif args.command == "predict":
         factory.predict_pipeline(

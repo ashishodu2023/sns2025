@@ -162,7 +162,8 @@ class SNSRawPrepSepDNNFactory:
         batch_size: int = 16,
         learning_rate: float = 1e-5,
         latent_dim: int = 16,
-        model_path: str = "vae_bilstm_model.weights.h5"
+        model_path: str = "vae_bilstm_model.weights.h5",
+        tensorboard_logdir: str = "logs/fit"
     ):
         """
         1) Prepares final DataFrame (df_final)
