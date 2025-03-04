@@ -188,12 +188,22 @@ class SNSRawPrepSepDNNFactory:
         X_train_combined = np.array(X_train_combined, dtype=np.float32)
         X_train_combined = np.nan_to_num(X_train_combined)
 
+        # Setup TensorBoard callback
+        time_str = datetime.now().strftime("%Y%m%d-%H%M%S")
+        log_dir = os.path.join(tensorboard_logdir, time_str)
+        tensorboard_callback = tf.keras.callbacks.TensorBoard(
+            log_dir=log_dir,
+            histogram_freq=1
+        )
+        self.logger.info(f"TensorBoard logs will be saved to: {log_dir}")
+
         # Train
         history = vae_model.fit(
             X_train_combined, X_train_combined,
             epochs=epochs,
             batch_size=batch_size,
-            validation_split=0.1
+            validation_split=0.1,
+            callbacks=[tensorboard_callback]
         )
 
         # Save

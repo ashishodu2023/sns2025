@@ -20,9 +20,8 @@ Usage:
 # --------------------------
 # MAIN with ARGPARSE SUBCOMMANDS
 # --------------------------
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser(description="VAE-BiLSTM Pipeline with train/predict, minimal code repetition")
-
     subparsers = parser.add_subparsers(dest="command", help="train or predict")
 
     # Subcommand: train
@@ -32,6 +31,7 @@ if __name__ == "__main__":
     train_parser.add_argument("--learning_rate", type=float, default=1e-5, help="Learning rate for SGD")
     train_parser.add_argument("--latent_dim", type=int, default=16, help="Latent dimension for VAE")
     train_parser.add_argument("--model_path", type=str, default="vae_bilstm_model.h5", help="Where to save the model weights")
+    train_parser.add_argument("--tensorboard_logdir", type=str, default="logs/fit", help="Base directory for TensorBoard logs")
 
     # Subcommand: predict
     predict_parser = subparsers.add_parser("predict", help="Use a trained model to predict anomalies")
@@ -57,3 +57,6 @@ if __name__ == "__main__":
         )
     else:
         parser.print_help()
+
+if __name__ == "__main__":
+    main()
