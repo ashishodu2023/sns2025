@@ -206,7 +206,7 @@ class SNSRawPrepSepDNNFactory:
     # ---------------------------
     def predict_pipeline(
         self,
-        model_path: str = "vae_bilstm_model.h5",
+        model_path: str = "saved_models/vae_bilstm_model.weights.h5",
         threshold_percentile: float = 95.0
     ):
         """
