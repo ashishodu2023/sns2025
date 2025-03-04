@@ -180,6 +180,7 @@ class SNSRawPrepSepDNNFactory:
         # Compile
         optimizer = tf.keras.optimizers.SGD(learning_rate=learning_rate)
         vae_model.compile(optimizer=optimizer, loss='mae')
+        print(vae_model.summary())
 
         # Windowing
         X_train_combined = []
