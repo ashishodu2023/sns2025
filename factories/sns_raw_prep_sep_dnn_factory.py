@@ -234,7 +234,7 @@ class SNSRawPrepSepDNNFactory:
         X_test_combined = np.nan_to_num(X_test_combined)
 
         # Predict
-        X_pred = loaded_vae_model.predict(X_test_combined)
+        X_pred = new_vae_model.predict(X_test_combined)
         reconstruction_errors = np.mean(np.abs(X_test_combined - X_pred), axis=(1, 2))
         threshold = np.percentile(reconstruction_errors, threshold_percentile)
         anomalies = reconstruction_errors > threshold
