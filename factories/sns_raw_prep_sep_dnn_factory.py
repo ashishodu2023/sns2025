@@ -162,7 +162,7 @@ class SNSRawPrepSepDNNFactory:
         batch_size: int = 16,
         learning_rate: float = 1e-5,
         latent_dim: int = 16,
-        model_path: str = "saved_models/vae_bilstm_model.h5"
+        model_path: str = "vae_bilstm_model.weights.h5"
     ):
         """
         1) Prepares final DataFrame (df_final)
@@ -197,7 +197,7 @@ class SNSRawPrepSepDNNFactory:
         )
 
         # Save
-        vae_model.save_weights("saved_models/vae_bilstm_model.weights.h5")
+        vae_model.save_weights(model_path)
         self.logger.info(f"Model saved to: {model_path}")
         self.logger.info("====== Training pipeline completed ======")
 
@@ -206,7 +206,7 @@ class SNSRawPrepSepDNNFactory:
     # ---------------------------
     def predict_pipeline(
         self,
-        model_path: str = "saved_models/vae_bilstm_model.weights.h5",
+        model_path: str = "vae_bilstm_model.weights.h5",
         threshold_percentile: float = 95.0
     ):
         """
