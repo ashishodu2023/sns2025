@@ -266,7 +266,7 @@ class SNSRawPrepSepDNNFactory:
 
         self.logger.info("====== Plotting reconstruction error ======")
         
-        plot_and_save_anomalies(df, threshold=200, dist_filename="dist_plot.png", time_filename="time_plot.png")
+        plot_and_save_anomalies(df_anomalies, threshold=150, dist_filename="dist_plot.png", time_filename="time_plot.png")
         self.logger.info("====== Saved Plots(png) ======")
 
 
