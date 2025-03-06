@@ -40,6 +40,7 @@ from data.beam_data_loader import BeamDataLoader
 from data.data_preprocessor import DataPreprocessor
 from data.merge_datasets import MergeDatasets
 from utils.logger import Logger
+from visualization.plots import plot_and_save_anomalies
 
 pd.options.display.max_columns = None
 pd.options.display.max_rows = None
@@ -176,11 +177,11 @@ class SNSRawPrepSepDNNFactory:
 
         # Build model
         vae_model = self.create_vae_bilstm_model(latent_dim=latent_dim)
-
+        vae_model.build((None, 100, 51))
         # Compile
         optimizer = tf.keras.optimizers.SGD(learning_rate=learning_rate)
         vae_model.compile(optimizer=optimizer, loss='mae')
-        vae_model.build((None, 100, 51))
+        
         print(vae_model.summary())
 
         # Windowing
@@ -262,4 +263,10 @@ class SNSRawPrepSepDNNFactory:
         self.logger.info(df_anomalies.sort_values(by="Reconstruction_Error", ascending=False).head(20))
 
         self.logger.info("====== Prediction pipeline completed ======")
+
+        self.logger.info("====== Plotting reconstruction error ======")
+        
+        plot_and_save_anomalies(df, threshold=200, dist_filename="dist_plot.png", time_filename="time_plot.png")
+        self.logger.info("====== Saved Plots(png) ======")
+
 
