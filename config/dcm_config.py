@@ -42,3 +42,23 @@ class DCMDatConfig:
         self.logger.info(len(self.filtered_normal_files2))
         self.logger.info(len(self.filtered_anomaly_files2))
         return self.filtered_normal_files2, self.filtered_anomaly_files2
+
+    def get_sep_filtered_files(self):
+        self.logger.info("====== Inside the get_sep_filtered_files ======")
+        subfolders = [f.path for f in os.scandir(self.dataset2_loc) if f.is_dir()]
+        for directory in subfolders:
+            if "normal" in directory or "anomal" in directory:
+                for root, _, files in os.walk(directory):
+                    for file in files:
+                        if file.startswith("."):
+                            continue  # Skip hidden/cache files
+                        if not file.endswith(".gz"):
+                            full_path = os.path.join(root, file)
+                            if 'normal' in directory:
+                                self.filtered_normal_files2.append(full_path)
+                            elif 'anomal' in directory:
+                                self.filtered_anomaly_files2.append(full_path)
+
+        self.logger.info(f"Normal files found: {len(self.filtered_normal_files2)}")
+        self.logger.info(f"Anomaly files found: {len(self.filtered_anomaly_files2)}")
+        return self.filtered_normal_files2, self.filtered_anomaly_files2

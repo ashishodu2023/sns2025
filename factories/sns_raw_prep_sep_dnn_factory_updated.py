@@ -23,7 +23,6 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from scipy.fftpack import fft
 from datetime import datetime, timedelta
-
 import argparse
 
 # Jlab Packages
@@ -41,7 +40,7 @@ from tensorflow.keras.layers import (
     Input, LSTM, Dense, Bidirectional, RepeatVector, TimeDistributed, Lambda
 )
 
-# Local modules (assuming you have them in your Python path)
+# Local modules (ensure these are in your PYTHONPATH)
 from models.vae_bilstm import MyVAE
 from config.bpm_config import BPMDataConfig
 from config.dcm_config import DCMDatConfig
@@ -59,20 +58,21 @@ class SNSRawPrepSepDNNFactory:
     """
     The main factory that orchestrates the entire pipeline.
     Subcommands:
-      1) train_pipeline(...)  - Load data, train VAE-BiLSTM, save model
-      2) predict_pipeline(...) - Load model, run anomaly detection
+      1) train_pipeline(...)  - Loads data, trains VAE-BiLSTM (window size = 3) with TensorBoard, saves model weights.
+      2) predict_pipeline(...) - Loads model, predicts anomalies using the reconstruction error on the nth pulse.
     """
 
     def __init__(self):
         self.bpm_config = BPMDataConfig()
         self.dcm_config = DCMDatConfig()
         self.logger = Logger()
-        #self.window_size = 100
-        self.window_size = 3
+        # For this forecasting setup, our window size is 3:
+        self.window_size = 3  
+        # Our model's output will have num_features equal to (number of PCA components + 1 for "time_diff").
+        # For consistency, we assume PCA produces 50 features; then num_features = 50 + 1 = 51.
         self.num_features = 51
 
     def create_beam_data(self) -> pd.DataFrame:
-        """Load beam config CSV and do minimal merges."""
         self.logger.info("====== Inside create_beam_data ======")
         loader = BeamDataLoader(self.bpm_config)
         beam_df = loader.load_beam_config_df()
@@ -93,7 +93,6 @@ class SNSRawPrepSepDNNFactory:
         return dp.get_dataframe()
 
     def create_vae_bilstm_model(self, latent_dim: int = 16) -> MyVAE:
-        """Factory method to build the VAE-BiLSTM model."""
         self.logger.info("====== Inside create_vae_bilstm_model ======")
         model = MyVAE(
             window_size=self.window_size,
@@ -103,33 +102,26 @@ class SNSRawPrepSepDNNFactory:
         return model
 
     def extract_trace_features(self, trace_row: np.ndarray) -> np.ndarray:
-        """Downsample + basic stats + partial FFT, etc."""
-        downsampled = trace_row[::20]  # from 10k to 500
+        """Downsample + basic stats + partial FFT from 10k points."""
+        downsampled = trace_row[::20]  # from 10k to 500 points
         mean_val = np.mean(downsampled)
         std_val = np.std(downsampled)
         peak_val = np.max(downsampled)
         fft_val = np.abs(fft(downsampled)[1])
-        # example: keep first 50 + stats
+        # Keep first 50 points plus the computed statistics:
         return np.hstack([downsampled[:50], mean_val, std_val, peak_val, fft_val])
 
     def _prepare_final_df(self) -> (pd.DataFrame, list):
         """
-        A single method that:
-          1) Loads BPM + DCM data
-          2) Merges them
-          3) Preprocesses (NaN, type conversions)
-          4) Extracts trace features + PCA
+        Loads, merges, preprocesses, and extracts PCA features.
         Returns:
-          df_final: final DataFrame with PCA columns
-          trace_feature_names: list of PCA column names
+          df_final: final DataFrame with PCA columns.
+          trace_feature_names: list of PCA column names.
         """
         self.logger.info("====== Inside _prepare_final_df ======")
-
-        # 1) Load data
         beam_df = self.create_beam_data()
         dcm_df = self.create_dcm_data()
 
-        # 2) Merge
         merged_df = pd.merge_asof(
             dcm_df.sort_values("timestamps"),
             beam_df.sort_values("timestamps"),
@@ -137,16 +129,14 @@ class SNSRawPrepSepDNNFactory:
             direction="nearest"
         )
 
-        # 3) Preprocess
         cleaned_df = self.preprocess_merged_data(merged_df)
         cleaned_df["traces"] = merged_df["traces"]
         cleaned_df["timestamps"] = merged_df["timestamps"]
-        cleaned_df['ICS_Tim:Gate_BeamOn:RR'] = cleaned_df['ICS_Tim:Gate_BeamOn:RR'].apply(lambda x: 0 if x <= 59.90 else 1)
-        cleaned_df['ICS_Tim:Chop_Flavor1:BeamOn'] = cleaned_df['ICS_Tim:Chop_Flavor1:BeamOn'].apply(lambda x: 0 if x <= 850 else 1)
 
+        # Drop unnecessary columns if present.
         for col_to_drop in ["file", "anomoly_flag"]:
             if col_to_drop in cleaned_df.columns:
-                cleaned_df.drop(columns=[col_to_drop], inplace=True, errors='ignore')
+                cleaned_df.drop(columns=[col_to_drop], inplace=True, errors="ignore")
 
         cleaned_df["timestamp_seconds"] = pd.to_datetime(cleaned_df["timestamps"], errors="coerce").astype(int) / 10**9
         cleaned_df["time_diff"] = cleaned_df["timestamp_seconds"].diff().fillna(0)
@@ -154,10 +144,8 @@ class SNSRawPrepSepDNNFactory:
             lambda x: np.array(eval(x)) if isinstance(x, str) else np.array(x)
         )
 
-        # 4) Feature extraction + PCA
-        trace_features = np.array(
-            cleaned_df["traces"].apply(self.extract_trace_features).tolist()
-        )
+        # Extract features from traces and reduce dimensions via PCA.
+        trace_features = np.array(cleaned_df["traces"].apply(self.extract_trace_features).tolist())
         pca = PCA(n_components=50)
         trace_features_pca = pca.fit_transform(trace_features)
         trace_feature_names = [f"PCA_Trace_{i}" for i in range(trace_features_pca.shape[1])]
@@ -176,34 +164,34 @@ class SNSRawPrepSepDNNFactory:
         batch_size: int = 16,
         learning_rate: float = 1e-5,
         latent_dim: int = 16,
-        #model_path: str = "vae_bilstm_model.weights",
         model_path: str = "saved_models/vae_bilstm_model.weights.h5",
         tensorboard_logdir: str = "logs/fit"
     ):
         """
-        1) Prepares final DataFrame (df_final)
-        2) Builds & trains VAE-BiLSTM
-        3) Saves model weights
+        Prepares final data, trains VAE-BiLSTM on windows of 3 pulses (n-2 & n-1 to reconstruct nth pulse),
+        logs training to TensorBoard, and saves model weights.
         """
         self.logger.info("====== Inside train_pipeline ======")
 
+        # Prepare data
         df_final, trace_feature_names = self._prepare_final_df()
 
         # Build model
         vae_model = self.create_vae_bilstm_model(latent_dim=latent_dim)
-        #vae_model.build((None, 100, 51))
         vae_model.build((None, self.window_size, self.num_features))
         self.logger.info(vae_model.summary())
+
         # Compile
         optimizer = tf.keras.optimizers.SGD(learning_rate=learning_rate)
         vae_model.compile(optimizer=optimizer, loss='mae')
 
-
-        # Windowing
+        # Create rolling windows.
+        # With window_size = 3, each window consists of 3 pulses.
+        # For forecasting anomaly, we will later compute reconstruction error only on the last (nth) pulse.
         X_train_combined = []
         for i in range(self.window_size, len(df_final)):
-            past_pulses = df_final.iloc[i - self.window_size : i][trace_feature_names + ["time_diff"]]
-            X_train_combined.append(past_pulses.values)
+            window = df_final.iloc[i - self.window_size : i][trace_feature_names + ["time_diff"]]
+            X_train_combined.append(window.values)
         X_train_combined = np.array(X_train_combined, dtype=np.float32)
         X_train_combined = np.nan_to_num(X_train_combined)
 
@@ -216,7 +204,7 @@ class SNSRawPrepSepDNNFactory:
         )
         self.logger.info(f"TensorBoard logs will be saved to: {log_dir}")
 
-        # Train
+        # Train the model (autoencoder reconstructs full window)
         history = vae_model.fit(
             X_train_combined, X_train_combined,
             epochs=epochs,
@@ -225,7 +213,7 @@ class SNSRawPrepSepDNNFactory:
             callbacks=[tensorboard_callback]
         )
 
-        # Save
+        # Save weights
         vae_model.save_weights(model_path)
         self.logger.info(f"Model saved to: {model_path}")
         self.logger.info("====== Training pipeline completed ======")
@@ -235,42 +223,37 @@ class SNSRawPrepSepDNNFactory:
     # ---------------------------
     def predict_pipeline(
         self,
-        #model_path: str = "vae_bilstm_model.weights.h5",
         model_path: str = "saved_models/vae_bilstm_model.weights.h5",
         threshold_percentile: float = 95.0
     ):
         """
-        1) Prepares final DataFrame (df_final)
-        2) Loads VAE-BiLSTM weights
-        3) Computes reconstruction errors & anomalies
+        Prepares final data, loads the trained model, and performs anomaly detection.
+        For each window (of 3 pulses), it computes the reconstruction error only on the last pulse.
         """
         self.logger.info("====== Inside predict_pipeline ======")
 
         df_final, trace_feature_names = self._prepare_final_df()
 
-        # Build same model architecture
-        #new_vae_model = MyVAE(window_size=100, num_features=51, latent_dim=16)
+        # Build the model architecture and perform a dummy forward pass to initialize weights.
         new_vae_model = MyVAE(window_size=self.window_size, num_features=self.num_features, latent_dim=16)
-         # Perform a dummy forward pass to initialize all weights
         dummy_input = tf.zeros((1, self.window_size, self.num_features), dtype=tf.float32)
         _ = new_vae_model(dummy_input)
-    
-        #new_vae_model.build((None, 100, 51))  # or a dummy forward pass
+
         weights_path = os.path.expanduser(model_path)
         new_vae_model.load_weights(weights_path)
         self.logger.info(f"Model weights loaded from: {model_path}")
 
-        # Windowing
+        # Create test windows
         X_test_combined = []
         for i in range(self.window_size, len(df_final)):
-            past_pulses = df_final.iloc[i - self.window_size : i][trace_feature_names + ["time_diff"]]
-            X_test_combined.append(past_pulses.values)
+            window = df_final.iloc[i - self.window_size : i][trace_feature_names + ["time_diff"]]
+            X_test_combined.append(window.values)
         X_test_combined = np.array(X_test_combined, dtype=np.float32)
         X_test_combined = np.nan_to_num(X_test_combined)
 
-        # Predict
+        # Predict: new_vae_model predicts an entire window (3 pulses)
         X_pred = new_vae_model.predict(X_test_combined)
-        #reconstruction_errors = np.mean(np.abs(X_test_combined - X_pred), axis=(1, 2))
+        # Compute reconstruction error only for the nth pulse (i.e. last timestep)
         reconstruction_errors = np.mean(np.abs(X_test_combined[:,-1,:] - X_pred[:,-1,:]), axis=1)
         threshold = np.percentile(reconstruction_errors, threshold_percentile)
         anomalies = reconstruction_errors > threshold
@@ -283,12 +266,16 @@ class SNSRawPrepSepDNNFactory:
 
         self.logger.info(f"Top 20 anomalies (threshold={threshold:.4f} at {threshold_percentile} percentile):")
         self.logger.info(df_anomalies.sort_values(by="Reconstruction_Error", ascending=False).head(20))
-
         self.logger.info("====== Prediction pipeline completed ======")
 
-        self.logger.info("====== Plotting  and saving reconstruction error ======")
-        
-        plot_and_save_anomalies(df_anomalies, threshold=150, dist_filename="dist_plot.png", time_filename="time_plot.png")
-        self.logger.info("====== Saved Plots(png) ======")
+        self.logger.info("====== Plotting and saving reconstruction error plots ======")
+        plot_and_save_anomalies(
+            df_anomalies, 
+            threshold=threshold, 
+            dist_filename="dist_plot.png", 
+            time_filename="time_plot.png"
+        )
+        self.logger.info("====== Saved Plots (PNG) ======")
+
 
 
