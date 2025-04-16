@@ -15,8 +15,6 @@
 
 </div>
 
----
-
 ## <font color=#003057> ***Findings & Lessons Learned*** </font>
 
 ### <u>Binary Transformation & Data Size</u> 
@@ -44,8 +42,6 @@
 **Ashish**:\
 &emsp; Lorem Ipsum
 
----
-
 ## <font color=#003057>***Recommendations***</font>
 
 ### <u>Data Access</u> 
@@ -64,10 +60,10 @@
         
   * Expanding on the previous recommendation of an SOP for ODU students, there should be a JLab version that walks through the steps that would be required to create a shared folder and the required code/sub-folders for the teams to execute the code
   * Another thing that would be benefical for future ODU students would be guidelines and explinations on bits of code that we're able to change for submitting batches to slurm. We were hesitant to change too much to avoid causing downstream impacts on JLab processing cores by accidently overindexing on resources
-
+    
 </font>
 
----
+## <font color=#003057> ***Model Notes*** </font>
 
 ### <font color=#98C5EA>**VAE-BiLSTM**</font>
 
