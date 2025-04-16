@@ -61,7 +61,7 @@
 &emsp; Similiar to accessing the data, one challenge that the team faced was running large scale models in the JLab environment once the models were developed in the Jupyter Notebooks. There was some trial and error that occurred when attempting to get the environment up and running in which to execute the code. Kishan did a great job in finding a solution that worked and in providing some documentation once issues were resolved 
 
 <font color=#4348DD>
-
+        
   * Expanding on the previous recommendation of an SOP for ODU students, there should be a JLab version that walks through the steps that would be required to create a shared folder and the required code/sub-folders for the teams to execute the code
   * Another thing that would be benefical for future ODU students would be guidelines and explinations on bits of code that we're able to change for submitting batches to slurm. We were hesitant to change too much to avoid causing downstream impacts on JLab processing cores by accidently overindexing on resources
 
@@ -69,65 +69,79 @@
 
 ---
 
-## <font color=#003057>***Model Notes***</font>
-
-### <font color=#98C5EA>**Package Requirements**</font>
-```bash
-Python==3.9.21
-numpy==2.0.2
-matplotlib==3.9.4
-seaborn==0.13.2
-pandas==2.2.3
-imblearn==0.0
-tensorflow==2.18.0
-tensorflow-estimator==2.13.0
-tensorflow-io-gcs-filesystem==0.37.1
-python-dateutil==2.9.0.post0
-scikit-learn==1.6.1
-scipy==1.13.1
-```
-
-
 ### <font color=#98C5EA>**VAE-BiLSTM**</font>
-```bash
-  # Train:
-  python driver.py train \
-    --epochs 5 --batch_size 8 --learning_rate 1e-4 --latent_dim 32 \
-    --model_path vae_bilstm_model.weights.h5 \
-    --tensorboard_logdir logs/fit
 
-  # Predict:
-  python driver.py predict \
-    --model_path vae_bilstm_model.weights.h5 --threshold_percentile 90
+#### *Structure*
+
+```    
+sns_2025
+├── config
+│   ├── bpm_config.py
+│   └── dcm_config.py
+├── data
+│   ├── data_preprocessor.py
+│   ├── beam_data_loader.py
+│   └── merge_datasets.py
+├── factories
+│   ├── sns_raw_prep_sep_dnn_factory.py
+│   └── sns_raw_prep_sep_dnn_factory_updated.py
+├── models
+│   └── vae_bilstm.py
+├── utils
+│   └── logger.py
+├── visualizations
+│   └── plots.py
+├── driver.py
+└── requirements.txt
 ```
 
-### <font color=#98C5EA>**CNN LSTM**</font> 
-#### Structure
+#### *Installation & Execution*
+``` bash
+#Install
+git clone sns_2025
+cd sns_2025
+pip install -r requirements.txt
 
+# Train:
+python driver.py train --epochs 5 --batch_size 8 --learning_rate 1e-4 --latent_dim 32 --model_path vae_bilstm_model.weights.h5 --tensorboard_logdir logs/fit
+
+# Predict:
+python driver.py predict --model_path vae_bilstm_model.weights.h5 --threshold_percentile 90
 ```
+
+### <font color=#98C5EA>**CNN LSTM**</font>
+
+#### *Structure*
+
+```         
 sns_cnn_lstm
 ├── analysis
-│ └── evaluation.py
+│   └── evaluation.py
 ├── data_preparation
-│ └── data_preprocessor.py
-│ └── data_scaling.py
+│   ├── data_preprocessor.py
+│   └── data_scaling.py
 ├── model
-│ └── anomaly_model.py
+│   └── anomaly_model.py
 ├── parser
-│ └── bpm_parser.py
-│ └── dcm_parser.py
+│   ├── bpm_parser.py
+│   └── dcm_parser.py
 ├── train_flow.py
 ├── test_flow.py
 ├── main.py
 └── requirements.txt
 ```
 
-#### Installation
+#### Installation & Execution
 
-```bash
+``` bash
+# Install
 git clone sns_cnn_lstm
 cd sns_cnn_lstm
 pip install -r requirements.txt
+
+# Train:
 python main.py --train
+
+# Test:
 python main.py --test
 ```
