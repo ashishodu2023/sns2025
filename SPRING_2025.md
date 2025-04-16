@@ -65,6 +65,22 @@
 
 ## <font color=#003057> ***Model Notes*** </font>
 
+### <font color=#98C5EA>**Requirements**</font>
+```bash
+Python==3.9.21
+numpy==2.0.2
+matplotlib==3.9.4
+seaborn==0.13.2
+pandas==2.2.3
+imblearn==0.0
+tensorflow==2.18.0
+tensorflow-estimator==2.13.0
+tensorflow-io-gcs-filesystem==0.37.1
+python-dateutil==2.9.0.post0
+scikit-learn==1.6.1
+scipy==1.13.1
+```
+
 ### <font color=#98C5EA>**VAE-BiLSTM**</font>
 
 #### *Structure*
