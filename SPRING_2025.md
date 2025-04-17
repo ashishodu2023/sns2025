@@ -37,7 +37,36 @@
 &emsp; Moreover I gained a lot of knowledge and experience from the coding side of the project. I come from an analytics background that is SQL-based and throughout my time at ODU have had to utilize Python. However, with the sample code that was provided by the JLab and other members of my team, I was able to see how Python is used at a higher degree. From this, I hope to take some of these teachniques and apply them to projects that I may work on in the future. 
 
 **Arun**:\
-&emsp; Lorem Ipsum
+The Anomaly Prediction at the Spallation Neutron Source Accelerator project explores machine learning techniques to detect errant beam pulses, ensuring efficient accelerator operations. Here are some key lessons learned:
+
+1. Data Preprocessing
+Feature Engineering: Selecting relevant features from accelerator sensor data significantly improves model performance.
+
+Normalization: Standardizing input data enhances stability, especially for deep learning models like VAE and BiLSTM.
+
+Handling Missing Data: Imputation techniques help maintain data integrity, preventing bias in anomaly detection.
+
+2. Model Selection
+VAE (Variational Autoencoder): Useful for learning latent representations and detecting anomalies based on reconstruction errors.
+
+BiLSTM (Bidirectional Long Short-Term Memory): Effective for capturing temporal dependencies in accelerator data.
+
+Hybrid Approaches: Combining VAE and BiLSTM improves robustness in anomaly detection.
+
+3. Performance Accuracy
+Evaluation Metrics: Precision, recall, and F1-score are crucial for assessing anomaly detection effectiveness.
+
+Threshold Optimization: Fine-tuning anomaly detection thresholds minimizes false positives and false negatives.
+
+4. Class Imbalance
+Synthetic Data Generation: Techniques like SMOTE help balance rare anomaly cases.
+
+Weighted Loss Functions: Adjusting loss functions ensures the model prioritizes minority class detection.
+
+5. Hyperparameter Tuning
+Grid Search & Bayesian Optimization: Used to optimize learning rates, batch sizes, and network architectures.
+
+Regularization Techniques: Dropout and batch normalization prevent overfitting.
 
 **Ashish**:\
 &emsp; Lorem Ipsum
