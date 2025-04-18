@@ -69,7 +69,54 @@ Grid Search & Bayesian Optimization: Used to optimize learning rates, batch size
 Regularization Techniques: Dropout and batch normalization prevent overfitting.
 
 **Ashish**:\
-&emsp; Lorem Ipsum
+
+* Strict Data Separation
+
+  - Always split into train/validation/test before any oversampling or transformation to avoid data leakage.
+
+  - Apply SMOTE (or any augmentation) only on the training set.
+
+* Balancing Precision and Recall
+
+  - Default 0.5 thresholds can be too conservative for rare‐event detection.
+
+  - Lowering your decision threshold can substantially boost recall at the expense of a controlled rise in FPR.
+
+* Class Imbalance Strategies
+
+  - Use class weights in your loss function to penalize missed anomalies more heavily.
+
+  - Experiment with both oversampling (SMOTE) and undersampling, tuning the sampling ratio and neighbor parameters.
+
+* Regularization and Overfitting Control
+
+  - Add L2 weight penalties and dropout (including recurrent dropout in LSTMs) to discourage memorization.
+
+  - Monitor training vs. validation losses and use early stopping or learning‑rate schedules.
+
+* Hyperparameter Tuning & Model Complexity
+
+  - Perform systematic searches (grid/random/Bayesian) over parameters like tree depth, learning rate, dropout rate, L2 strength, and network size.
+
+  - Ensure your model has enough capacity to learn anomalies—but not so much that it overfits the majority class.
+
+* Feature Engineering
+
+  - Go beyond basic statistics on your “traces”: extract frequency‑domain features (FFT, wavelets), autocorrelations, rolling‑window moments, skewness, kurtosis, etc.
+
+  - Leverage domain knowledge to craft features that highlight known anomaly signatures.
+
+* Alternative Anomaly Detection Techniques
+
+  - Evaluate specialized unsupervised methods (Isolation Forest, One‑Class SVM, autoencoders) that focus on modeling “normal” and flag deviations.
+
+  - Consider ensemble or stacked models to combine different algorithmic strengths.
+
+* Probability Calibration & Evaluation
+
+  - Use Platt scaling or isotonic regression to align predicted probabilities with true event likelihoods.
+
+  - Rigorously assess performance via k‑fold cross‑validation, ROC/PR curves, and domain‑specific cost metrics to choose the best operating poin
 
 ## <font color=#003057>***Recommendations***</font>
 
