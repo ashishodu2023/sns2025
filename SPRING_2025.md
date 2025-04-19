@@ -24,11 +24,15 @@
 &emsp; Even after the tests and implementation of the filtering techniques mentioned above, there was another factor of the data that we had to address. This was from nature of how the data was collected from the SNS, and there exists more data for when things are operating normally and when faults occur. 
 
 
-### <u>Model Findings</u>
-&emsp; Place holder to talk about development of the unsupervised and supervised models  
+### <u>Model Overview & Findings</u>
+&emsp; Throughout the semester the team looked to implement more than one model to attempt to detect the anomalies. We tried to develop techniques that had not been documented as machine learning models that have been applied to the SNS data, to give a fresh perspective of insights. From this two models were developed and tested, an unsupervised model and a supervised model. The next section gives a high level description of the models and explores insights from the outputs.
 
-* **VAE-BiLSTM**
-* **CNN LSTM**
+#### ***VAE-BiLSTM***
+&emsp; The first model we explored was unsupervised, and utilized a blended model to process the data for anomaly detection, which was a Variable Autoencoder with Bilaterial Long-Short Term Memory. During initial research for machine learning models that excel in anomaly detection, the team came upon a paper for a team that used this model within the medical sector to detect anomalies in heart rates via data collected from wearable devices <sup>[1](https://doi.org/10.3390/bioengineering10060683)</sup>. The data that is collected from the SNS had patterns that were repeatable with each run, similar to how the heart rate data would come through, and determined that the model could generate insights on these patterns.\
+&emsp; The two segments of the VAE-BiLSTM model both aided in anomaly detection. Variable Autoencoders learn from a latent representation of data and attempts to reconstruct it, and a BiLSTM is a recurrent neural network that processes data in both forward and backward directions, capturing context from both past and future states. By combining these with the time series data of the SNS, the model would be able to look forward and backwards through the data as it attempts to reconstruct the latent data to determine if it was normal.\
+
+#### ***CNN LSTM***
+&emsp; The second model we explored was supervised and again utilized a blended model, which was a Convolutional Neural Network with Long-Short Term Memory <sup>[2](https://doi.org/10.1145/3465481.3469190)</sup>. With this model, we were able to create labels for the data based on whether it was extracted from the normal file(0) or the anomalous file(1). By setting this value as the y value of the model, once the data was processed it would classify the results into this binary format. A CNN LSTM model is another strong model choice for anomaly detection from the temporal aspect of the SNS data. CNN layers extract features from chunks of input data whilst the LSTM layers model the temporal relationships between these extracted features and are good for detecting subtle changes that indicate an anomaly.\
 
 ### <u>Individual Insights</u>
 
