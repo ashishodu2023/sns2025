@@ -201,7 +201,7 @@ python driver.py train --epochs 5 --batch_size 8 --learning_rate 1e-4 --latent_d
 python driver.py predict --model_path vae_bilstm_model.weights.h5 --threshold_percentile 90
 ```
 
-### <font color=#98C5EA>**CNN LSTM**</font>
+### <font color=#98C5EA>**[CNN LSTM](https://github.com/ashishodu2023/sns_cnn_lstm)**</font>
 
 #### *Structure*
 
